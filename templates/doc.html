@@ -1,0 +1,65 @@
+<div class="container-fluid sticky-top bg-white px-0 py-3">
+  <div class="row align-items-center">
+    <div class="col">
+      <i class="bi bi-file-text"></i> Doc. ID: <code id="doc-id" data-doc-id="{{ doc["id"] }}">{{ doc["id"] }}</code>
+    </div>
+    <div class="col-2 d-flex align-items-center">
+      Progress:
+      <div class="progress flex-grow-1 ms-2">
+        <div class="progress-bar" id="doc-progress" style="width: {{ doc["progress"] }}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% for paragraph in doc["paragraphs"] %}
+<div class="card mb-4">
+  <div class="card-header">{{ paragraph["title"] | safe }}</div>
+  <div class="card-body mb-3">
+    <p class="card-text">{{ paragraph["paragraph"] | safe }}</p>
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for evidence in paragraph["evidences"] %}
+    <li
+      class="list-group-item container-fluid"
+      data-evidence-id="{{ evidence[0] }}"
+    >
+      <div class="row align-items-center">
+        <div class="col">{{ evidence[1] | safe }}</div>
+        <div class="col-2 d-flex flex-row-reverse">
+          <input
+            type="radio"
+            class="btn-check"
+            name="btn-ans-{{ evidence[0] }}"
+            id="btn-success-{{ evidence[0] }}"
+            autocomplete="off"
+            data-evidence-ans="2"
+            data-evidence-id="{{ evidence[0] }}"
+            {% if doc["answers"][evidence[0]] == 2 %} checked {% endif %}
+          />
+          <label
+            class="btn btn-outline-success mx-2"
+            for="btn-success-{{ evidence[0] }}"
+            ><i class="bi bi-check-lg"></i
+          ></label>
+          <input
+            type="radio"
+            class="btn-check"
+            name="btn-ans-{{ evidence[0] }}"
+            id="btn-danger-{{ evidence[0] }}"
+            autocomplete="off"
+            data-evidence-ans="1"
+            data-evidence-id="{{ evidence[0] }}"
+            {% if doc["answers"][evidence[0]] == 1 %} checked {% endif %}
+          />
+          <label
+            class="btn btn-outline-danger mx-2"
+            for="btn-danger-{{ evidence[0] }}"
+            ><i class="bi bi-x-lg"></i
+          ></label>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}

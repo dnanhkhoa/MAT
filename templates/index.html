@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>MAT: Multihop Annotation Tool</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.datatables.net/v/bs5/jq-3.6.0/dt-1.13.4/sc-2.1.1/datatables.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="icon"
+      href="https://icons.getbootstrap.com/assets/icons/check2-circle.svg"
+      type="image/svg+xml"
+    />
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-8 vh-100 d-flex flex-column px-0">
+          <nav class="navbar navbar-light border-bottom border-3 border-info">
+            <div class="container-fluid">
+              <a class="navbar-brand" tabindex="-1" href="#"
+                >MAT: Multihop Annotation Tool</a
+              >
+            </div>
+          </nav>
+          <div
+            class="container-fluid flex-grow-1 border-end px-3 pb-3 overflow-auto"
+            id="doc-view"
+          ></div>
+        </div>
+        <div class="col vh-100 d-flex flex-column px-0">
+          <nav class="navbar navbar-light border-bottom border-3 border-info">
+            <div class="container-fluid justify-content-end">
+              <a
+                class="navbar-brand"
+                tabindex="-1"
+                href="https://github.com/dnanhkhoa/MAT"
+                target="_blank"
+                ><i class="bi bi-github"></i
+              ></a>
+            </div>
+          </nav>
+          <div class="container-fluid p-3">
+            <select class="form-select mb-3" id="data-file">
+              <option hidden disabled selected>Select a data file</option>
+              {% for data_file in data_files %}
+              <option>{{ data_file }}</option>
+              {% endfor %}
+            </select>
+            <table class="table table-bordered table-hover" id="doc-ids">
+              <thead>
+                <tr>
+                  <th scope="col">%</th>
+                  <th scope="col">Doc. ID</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/v/bs5/jq-3.6.0/dt-1.13.4/sc-2.1.1/datatables.min.js"></script>
+    <script>
+      $(function () {
+        $.ajaxSetup({
+          timeout: 0,
+          cache: false,
+        });
+
+        let endpoint_url = "http://127.0.0.1:8000";
+
+        let table = $("#doc-ids").DataTable({
+          dom: 'irt<"mt-3"f>',
+          order: [[1, "asc"]],
+          scrollY: "55vh",
+          processing: true,
+          deferRender: true,
+          scroller: true,
+          scroller: {
+            loadingIndicator: true,
+          },
+          createdRow: function (row, data, dataIndex) {
+            let doc_id = data.slice(-1);
+
+            $(row)
+              .attr("data-doc-index", dataIndex)
+              .attr("data-doc-id", doc_id);
+          },
+        });
+
+        $("#data-file").on("change", function () {
+          $("#doc-view").empty();
+
+          table.search("").clear().draw();
+
+          let data_file = $(this).val();
+
+          if (data_file) {
+            table.ajax
+              .url(endpoint_url + "/ids/?data_file=" + data_file)
+              .load();
+          }
+        });
+
+        $("#doc-ids tbody").on("click", "tr", function () {
+          let data_file = $("#data-file").val();
+          let doc_id = $(this).attr("data-doc-id");
+
+          if (data_file && doc_id) {
+            table.$("tr.table-active").removeClass("table-active");
+
+            $(this).addClass("table-active");
+
+            $.ajax({
+              url:
+                endpoint_url +
+                "/doc/?data_file=" +
+                data_file +
+                "&doc_id=" +
+                doc_id,
+            }).done(function (res) {
+              $("#doc-view").html(res);
+
+              let formatters = {
+                "span[data-role=S]":
+                  "border border-info bg-info bg-opacity-25 px-1",
+                "span[data-role=E]":
+                  "border border-warning bg-warning bg-opacity-25 px-1",
+                "strong[data-role=S]":
+                  "border border-start-0 border-info bg-info bg-opacity-25 px-1",
+                "strong[data-role=E]":
+                  "border border-start-0 border-warning bg-warning bg-opacity-25 px-1",
+              };
+
+              for (let selector in formatters) {
+                $("#doc-view " + selector)
+                  .removeClass()
+                  .addClass(formatters[selector]);
+              }
+            });
+          }
+        });
+
+        $("#doc-view").on("change", "input[data-evidence-id]", function () {
+          let data_file = $("#data-file").val();
+          let doc_id = $("#doc-id").attr("data-doc-id");
+          let evidence_id = $(this).attr("data-evidence-id");
+          let evidence_ans = $(this).attr("data-evidence-ans");
+          let ans_buttons = $(this).attr("name");
+
+          if (
+            data_file &&
+            doc_id &&
+            evidence_id &&
+            evidence_ans &&
+            ans_buttons
+          ) {
+            $("#doc-view input[name=" + ans_buttons + "]").prop(
+              "disabled",
+              true
+            );
+
+            $.ajax({
+              url:
+                endpoint_url +
+                "/answer/?data_file=" +
+                data_file +
+                "&doc_id=" +
+                doc_id +
+                "&evidence_id=" +
+                evidence_id +
+                "&evidence_ans=" +
+                evidence_ans,
+              method: "PUT",
+            })
+              .done(function (res) {
+                let progress = res.progress;
+                let answer = res.answers[evidence_id];
+
+                $(
+                  "#doc-view input[data-evidence-ans=" +
+                    answer +
+                    "][name=" +
+                    ans_buttons +
+                    "]"
+                ).prop("checked", true);
+
+                table
+                  .cell($("tr[data-doc-id=" + doc_id + "] > td:first-child"))
+                  .data(progress)
+                  .draw(false);
+
+                $("#doc-progress").width(progress + "%");
+              })
+              .always(function () {
+                $("#doc-view input[name=" + ans_buttons + "]").prop(
+                  "disabled",
+                  false
+                );
+              });
+          }
+        });
+
+        $(document).on("keydown", function (e) {
+          if (e.ctrlKey && e.key === "f") {
+            $("#doc-ids_filter > label > input").focus();
+
+            e.preventDefault();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

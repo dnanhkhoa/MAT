@@ -1,4 +1,4 @@
-spaczz==0.5.4
+spaczz==0.6.0
 orjson==3.8.10
 fastapi==0.95.1
 uvicorn[standard]==0.22.0
