@@ -72,12 +72,9 @@ class Data:
 
                 plain_doc = plain_doc.replace(span, span_id)
 
-                ent_role, ent_idx = match_id.split("_")
+                ent_role, _ = match_id.split("_")
 
-                matches[span_id] = (
-                    f'<span data-role="{ent_role}">{span}</span>'
-                    f'<strong data-role="{ent_role}">{ent_idx}</strong>'
-                )
+                matches[span_id] = f'<span data-role="{ent_role}">{span}</span>'
 
             for span_id, span in matches.items():
                 plain_doc = plain_doc.replace(span_id, span)
