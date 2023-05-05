@@ -118,8 +118,9 @@
         $("#doc-ids tbody").on("click", "tr", function () {
           let data_file = $("#data-file").val();
           let doc_id = $(this).attr("data-doc-id");
+          let is_active = $(this).hasClass("table-active");
 
-          if (data_file && doc_id) {
+          if (!is_active && data_file && doc_id) {
             table.$("tr.table-active").removeClass("table-active");
 
             $(this).addClass("table-active");
