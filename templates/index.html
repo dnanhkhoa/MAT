@@ -135,10 +135,9 @@
               $("#doc-view").html(res);
 
               let formatters = {
-                "span[data-role=S]":
-                  "border border-info bg-info bg-opacity-25 px-1",
+                "span[data-role=S]": "border border-info bg-info bg-opacity-25",
                 "span[data-role=E]":
-                  "border border-warning bg-warning bg-opacity-25 px-1",
+                  "border border-warning bg-warning bg-opacity-25",
               };
 
               for (let selector in formatters) {
