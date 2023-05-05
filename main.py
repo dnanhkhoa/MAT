@@ -72,9 +72,11 @@ class Data:
 
                 plain_doc = plain_doc.replace(span, span_id)
 
-                ent_role, _ = match_id.split("_")
+                ent_role, rel, _ = match_id.split("_")
 
-                matches[span_id] = f'<span data-role="{ent_role}">{span}</span>'
+                matches[
+                    span_id
+                ] = f'<span data-role="{ent_role}" data-relation="{rel}">{span}</span>'
 
             for span_id, span in matches.items():
                 plain_doc = plain_doc.replace(span_id, span)
@@ -139,9 +141,9 @@ class Data:
                     for paragraph_idx, paragraph in enumerate(paragraphs):
                         ents: dict[str, str] = {}
 
-                        for sub, _, obj in evidences[paragraph_idx].values():
-                            ents[sub] = "S"
-                            ents[obj] = "E"
+                        for sub, rel, obj in evidences[paragraph_idx].values():
+                            ents[sub] = f"S_{rel}"
+                            ents[obj] = f"E_{rel}"
 
                         matcher = FuzzyMatcher(vocab=self.nlp.vocab)
 

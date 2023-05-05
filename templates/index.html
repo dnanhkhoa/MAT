@@ -137,14 +137,42 @@
 
               let formatters = {
                 "span[data-role=S]": "border border-info bg-info bg-opacity-25",
-                "span[data-role=E]":
-                  "border border-warning bg-warning bg-opacity-25",
+                "span[data-role=E]": "border",
               };
 
               for (let selector in formatters) {
                 $("#doc-view " + selector)
                   .removeClass()
                   .addClass(formatters[selector]);
+              }
+
+              let highlight_colors = {
+                father: "#ffd43b",
+                mother: "#ffd43b",
+                spouse: "#0b7285",
+                "date of birth": "#40c057",
+                "date of death": "#40c057",
+                "place of birth": "#ae3ec9",
+                "place of death": "#ae3ec9",
+                "country of citizenship": "#4263eb",
+                "cause of death": "#f03e3e",
+              };
+
+              for (let relation in highlight_colors) {
+                $(
+                  "#doc-view span[data-role=E][data-relation='" +
+                    relation +
+                    "']"
+                )
+                  .removeAttr("style")
+                  .attr(
+                    "style",
+                    "border-color: " +
+                      highlight_colors[relation] +
+                      " !important; background-color: " +
+                      highlight_colors[relation] +
+                      "40 !important;"
+                  );
               }
             });
           }
