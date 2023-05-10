@@ -1,5 +1,8 @@
 # MAT
+
 MAT: Multihop Annotation Tool
+
+![Demo](assets/demo.png)
 
 ## Installation
 
