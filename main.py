@@ -11,7 +11,9 @@ import spacy
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, ORJSONResponse
 from fastapi.templating import Jinja2Templates
+from sentence_transformers import SentenceTransformer, util
 from spaczz.matcher import FuzzyMatcher
+from torch import Tensor
 
 app = FastAPI()
 
@@ -21,12 +23,15 @@ templates = Jinja2Templates(directory="templates")
 class Data:
     def __init__(
         self,
+        model_dir: str,
         data_dir: str,
         state_dir: str,
         backup_dir: str,
         matching_threshold: int = 100,
     ) -> None:
         self.lock = Lock()
+
+        self.model = SentenceTransformer(model_dir, device="cpu")
 
         self.nlp = spacy.blank(name="en")
         self.matching_threshold = matching_threshold
@@ -36,7 +41,8 @@ class Data:
         self.backup_dir = Path(backup_dir)
 
         self.data: defaultdict[
-            str, dict[str, list[dict[str, str | list[tuple[str, str]]]]]
+            str,
+            dict[str, list[dict[str, str | list[str] | list[tuple[str, str, str]]]]],
         ] = defaultdict(dict)
 
         self.states: defaultdict[str, defaultdict[str, dict[str, int]]] = defaultdict(
@@ -101,7 +107,9 @@ class Data:
 
                     doc_id = doc["_id"].strip()
 
-                    paragraphs: list[dict[str, str | list[tuple[str, str]]]] = []
+                    paragraphs: list[
+                        dict[str, str | list[str] | list[tuple[str, str, str]]]
+                    ] = []
 
                     for title, sentences in (
                         [doc["para_3_hop"]] if is_extension_mode else doc["context"]
@@ -109,7 +117,7 @@ class Data:
                         paragraphs.append(
                             {
                                 "title": title.strip(),
-                                "paragraph": " ".join(map(str.strip, sentences)),
+                                "sentences": list(map(str.strip, sentences)),
                             }
                         )
 
@@ -141,9 +149,13 @@ class Data:
                     for paragraph_idx, paragraph in enumerate(paragraphs):
                         ents: dict[str, str] = {}
 
+                        rels: list[str] = []
+
                         for sub, rel, obj in evidences[paragraph_idx].values():
                             ents[sub] = f"S_{rel}"
                             ents[obj] = f"E_{rel}"
+
+                            rels.append(rel)
 
                         matcher = FuzzyMatcher(vocab=self.nlp.vocab)
 
@@ -155,12 +167,30 @@ class Data:
                                 patterns=[self.nlp(ent)],
                             )
 
-                        # paragraph["title"] = self.mark_entities(
-                        #     matcher, plain_doc=paragraph["title"]  # type: ignore
-                        # )
+                        sentences: list[str] = paragraph["sentences"]  # type: ignore
 
-                        paragraph["paragraph"] = self.mark_entities(
-                            matcher, plain_doc=paragraph["paragraph"]  # type: ignore
+                        paragraph["paragraph"] = " ".join(
+                            [
+                                f'<span data-highlightable="1" '
+                                f'data-sentence-id="{paragraph_idx}_{sentence_idx}">'
+                                f"{self.mark_entities(matcher, sentence)}"
+                                "</span>"
+                                for sentence_idx, sentence in enumerate(sentences)
+                            ]
+                        )
+
+                        rel_embeddings: Tensor = self.model.encode(  # type: ignore
+                            rels, convert_to_tensor=True, normalize_embeddings=True
+                        )
+
+                        sentence_embeddings: Tensor = self.model.encode(  # type: ignore
+                            sentences, convert_to_tensor=True, normalize_embeddings=True
+                        )
+
+                        rel_sentence_indices: list[int] = (
+                            util.dot_score(rel_embeddings, sentence_embeddings)
+                            .argmax(dim=1)
+                            .tolist()  # type: ignore
                         )
 
                         paragraph["evidences"] = [
@@ -173,14 +203,16 @@ class Data:
                                         self.mark_entities(matcher, plain_doc=obj),
                                     )
                                 ),
+                                f"{paragraph_idx}_{rel_sentence_indices[evidence_idx]}",
                             )
-                            for evidence_id, (sub, rel, obj) in evidences[
-                                paragraph_idx
-                            ].items()
+                            for evidence_idx, (
+                                evidence_id,
+                                (sub, rel, obj),
+                            ) in enumerate(evidences[paragraph_idx].items())
                         ]
 
-                        def func(e: tuple[str, str]) -> int:
-                            evidence_id, _ = e
+                        def func(e: tuple[str, str, str]) -> int:
+                            evidence_id, *_ = e
 
                             return int(evidence_id.split("_")[-1])
 
@@ -196,7 +228,7 @@ class Data:
                             {
                                 "title": "Question and Answer",
                                 "paragraph": doc["question"].strip(),
-                                "evidences": [(evidence_id, evidence)],
+                                "evidences": [(evidence_id, evidence, "_")],
                             }
                         )
 
@@ -254,7 +286,10 @@ class Data:
     ) -> (
         dict[
             str,
-            str | float | list[dict[str, str | list[tuple[str, str]]]] | dict[str, int],
+            str
+            | float
+            | list[dict[str, str | list[str] | list[tuple[str, str, str]]]]
+            | dict[str, int],
         ]
         | None
     ):
@@ -303,7 +338,10 @@ class Data:
     ) -> (
         dict[
             str,
-            str | float | list[dict[str, str | list[tuple[str, str]]]] | dict[str, int],
+            str
+            | float
+            | list[dict[str, str | list[str] | list[tuple[str, str, str]]]]
+            | dict[str, int],
         ]
         | None
     ):
@@ -321,7 +359,11 @@ class Data:
 
 
 data = Data(
-    data_dir="data", state_dir="answers", backup_dir="backups", matching_threshold=80
+    model_dir="./models/all-MiniLM-L6-v2",
+    data_dir="data",
+    state_dir="answers",
+    backup_dir="backups",
+    matching_threshold=80,
 )
 
 

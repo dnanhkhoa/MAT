@@ -238,6 +238,20 @@
           }
         });
 
+        $("#doc-view").on("mouseenter", "li", function () {
+          let sentence_id = $(this).attr("data-sentence-id");
+
+          $("#doc-view span[data-highlightable=1]").removeClass();
+
+          $(
+            "#doc-view span[data-highlightable=1][data-sentence-id='" +
+            sentence_id +
+            "']"
+          ).addClass("border-bottom border-warning border-2");
+        }).on("mouseleave", "li", function () {
+          $("#doc-view span[data-highlightable=1]").removeClass();
+        });
+
         $(document).on("keydown", function (e) {
           if (e.ctrlKey && e.key === "f") {
             $("#doc-ids_filter > label > input").focus();

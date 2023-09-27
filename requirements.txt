@@ -3,3 +3,4 @@ orjson==3.8.10
 fastapi==0.95.1
 uvicorn[standard]==0.22.0
 jinja2==3.1.2
+sentence-transformers==2.2.2
