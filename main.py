@@ -13,7 +13,6 @@ from fastapi.responses import HTMLResponse, ORJSONResponse
 from fastapi.templating import Jinja2Templates
 from sentence_transformers import SentenceTransformer, util
 from spaczz.matcher import FuzzyMatcher
-from torch import Tensor
 
 app = FastAPI()
 
@@ -23,15 +22,15 @@ templates = Jinja2Templates(directory="templates")
 class Data:
     def __init__(
         self,
-        model_dir: str,
         data_dir: str,
         state_dir: str,
         backup_dir: str,
+        model_dir: str | None = None,
         matching_threshold: int = 100,
     ) -> None:
         self.lock = Lock()
 
-        self.model = SentenceTransformer(model_dir, device="cpu")
+        self.model = SentenceTransformer(model_dir, device="cpu") if model_dir else None
 
         self.nlp = spacy.blank(name="en")
         self.matching_threshold = matching_threshold
@@ -179,19 +178,25 @@ class Data:
                             ]
                         )
 
-                        rel_embeddings: Tensor = self.model.encode(  # type: ignore
-                            rels, convert_to_tensor=True, normalize_embeddings=True
-                        )
+                        rel_sentence_indices: list[int] = []
 
-                        sentence_embeddings: Tensor = self.model.encode(  # type: ignore
-                            sentences, convert_to_tensor=True, normalize_embeddings=True
-                        )
-
-                        rel_sentence_indices: list[int] = (
-                            util.dot_score(rel_embeddings, sentence_embeddings)
-                            .argmax(dim=1)
-                            .tolist()  # type: ignore
-                        )
+                        if self.model and rels and sentences:
+                            rel_sentence_indices = (
+                                util.dot_score(
+                                    self.model.encode(  # type: ignore
+                                        rels,
+                                        convert_to_tensor=True,
+                                        normalize_embeddings=True,
+                                    ),
+                                    self.model.encode(  # type: ignore
+                                        sentences,
+                                        convert_to_tensor=True,
+                                        normalize_embeddings=True,
+                                    ),
+                                )
+                                .argmax(dim=1)
+                                .tolist()  # type: ignore
+                            )
 
                         paragraph["evidences"] = [
                             (
@@ -203,7 +208,9 @@ class Data:
                                         self.mark_entities(matcher, plain_doc=obj),
                                     )
                                 ),
-                                f"{paragraph_idx}_{rel_sentence_indices[evidence_idx]}",
+                                f"{paragraph_idx}_{rel_sentence_indices[evidence_idx]}"
+                                if rel_sentence_indices
+                                else "_",
                             )
                             for evidence_idx, (
                                 evidence_id,
@@ -359,10 +366,10 @@ class Data:
 
 
 data = Data(
-    model_dir="./models/all-MiniLM-L6-v2",
     data_dir="data",
     state_dir="answers",
     backup_dir="backups",
+    model_dir="./models/all-MiniLM-L6-v2",
     matching_threshold=80,
 )
 
